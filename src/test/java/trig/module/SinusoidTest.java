@@ -9,6 +9,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import se.ifmo.ru.trig.Sinusoid;
 
+import java.math.BigDecimal;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,8 +18,8 @@ import static org.assertj.core.api.Assertions.within;
 
 public class SinusoidTest {
 
-    private static final double EPSILON = Math.pow(10, -10);
-    private static final double LARGE_X = 1_000_000.0;
+    private static final BigDecimal EPSILON = new BigDecimal("1e-10");
+    private static final BigDecimal LARGE_X = new BigDecimal("1000000");
 
     private final Sinusoid sin = new Sinusoid();
 
@@ -29,28 +30,23 @@ public class SinusoidTest {
         @Test
         @DisplayName("Должен выбрасывать исключение при epsilon <= 0")
         void shouldThrowException_whenEpsilonIsNonPositive() {
-            double x = 1.0;
+            BigDecimal x = BigDecimal.ONE;
 
-            assertThatThrownBy(() -> sin.calculate(x, 0.0))
+            assertThatThrownBy(() -> sin.calculate(x, BigDecimal.ZERO))
                     .isInstanceOf(IllegalArgumentException.class);
 
-            assertThatThrownBy(() -> sin.calculate(x, -1e-3))
+            assertThatThrownBy(() -> sin.calculate(x, new BigDecimal("-1e-3")))
                     .isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test
-        @DisplayName("Должен корректно обрабатывать NaN")
-        void shouldHandleNaN() {
-            double actual = sin.calculate(Double.NaN, EPSILON);
+        @DisplayName("Должен выбрасывать исключение при null")
+        void shouldThrowException_whenNull() {
+            assertThatThrownBy(() -> sin.calculate(null, EPSILON))
+                    .isInstanceOf(IllegalArgumentException.class);
 
-            assertThat(actual).isNaN();
-        }
-
-        @Test
-        @DisplayName("Должен корректно обрабатывать бесконечность")
-        void shouldHandleInfinity() {
-            assertThatThrownBy(() -> sin.calculate(Double.POSITIVE_INFINITY, EPSILON))
-                    .isInstanceOf(Exception.class);
+            assertThatThrownBy(() -> sin.calculate(BigDecimal.ONE, null))
+                    .isInstanceOf(IllegalArgumentException.class);
         }
     }
 
@@ -75,35 +71,30 @@ public class SinusoidTest {
         @Test
         @DisplayName("sin(0) должен быть равен 0")
         void shouldReturnZero_whenXIsZero() {
-            double actual = sin.calculate(0.0, EPSILON);
+            BigDecimal actual = sin.calculate(BigDecimal.ZERO, EPSILON);
 
-            assertThat(actual).isEqualTo(0.0);
+            assertThat(actual.doubleValue()).isCloseTo(0.0, within(1e-10));
         }
 
         @ParameterizedTest(name = "sin({0}) ~~ {1}")
         @MethodSource("provideAngles")
         @DisplayName("Должен корректно считать значения в характерных точках")
         void shouldReturnCorrectValues(double x, double expected) {
-            double actual = sin.calculate(x, EPSILON);
+            BigDecimal actual = sin.calculate(BigDecimal.valueOf(x), EPSILON);
 
-            assertThat(actual)
+            assertThat(actual.doubleValue())
                     .isCloseTo(expected, within(1e-8));
         }
 
         @ParameterizedTest
-        @CsvSource({
-                "0.1",
-                "0.5",
-                "1.0",
-                "2.0"
-        })
+        @CsvSource({"0.1", "0.5", "1.0", "2.0"})
         @DisplayName("sin(x) должен быть нечётной функцией")
         void shouldBeOddFunction(double x) {
-            double positive = sin.calculate(x, EPSILON);
-            double negative = sin.calculate(-x, EPSILON);
+            BigDecimal positive = sin.calculate(BigDecimal.valueOf(x), EPSILON);
+            BigDecimal negative = sin.calculate(BigDecimal.valueOf(-x), EPSILON);
 
-            assertThat(positive)
-                    .isCloseTo(-negative, within(1e-9));
+            assertThat(positive.doubleValue())
+                    .isCloseTo(-negative.doubleValue(), within(1e-9));
         }
     }
 
@@ -114,25 +105,18 @@ public class SinusoidTest {
         @Test
         @DisplayName("Должен выбрасывать исключение если ряд не сходится")
         void shouldThrowException_whenSeriesDoesNotConverge() {
-            assertThatThrownBy(() ->
-                    sin.calculate(LARGE_X, 1e-20)
-            ).isInstanceOf(IllegalStateException.class);
+            assertThatThrownBy(() -> sin.calculate(LARGE_X, new BigDecimal("1e-20")))
+                    .isInstanceOf(IllegalStateException.class);
         }
 
         @ParameterizedTest
-        @CsvSource({
-                "0.1",
-                "1.0",
-                "3.0",
-                "10.0"
-        })
+        @CsvSource({"0.1", "1.0", "3.0", "10.0"})
         @DisplayName("Ряд должен сходиться к значению Math.sin(x)")
         void shouldConvergeToMathSin(double x) {
+            BigDecimal actual = sin.calculate(BigDecimal.valueOf(x), EPSILON);
             double expected = Math.sin(x);
-            double actual = sin.calculate(x, EPSILON);
 
-            assertThat(actual)
-                    .isCloseTo(expected, within(1e-8));
+            assertThat(actual.doubleValue()).isCloseTo(expected, within(1e-8));
         }
 
         static Stream<Arguments> provideAccuracyCases() {
@@ -147,11 +131,10 @@ public class SinusoidTest {
         @MethodSource("provideAccuracyCases")
         @DisplayName("Точность должна улучшаться при уменьшении epsilon")
         void shouldImproveAccuracy_whenEpsilonDecreases(double x, double epsilon) {
+            BigDecimal actual = sin.calculate(BigDecimal.valueOf(x), new BigDecimal(epsilon));
             double expected = Math.sin(x);
-            double actual = sin.calculate(x, epsilon);
 
-            assertThat(actual)
-                    .isCloseTo(expected, within(epsilon * 10));
+            assertThat(actual.doubleValue()).isCloseTo(expected, within(epsilon * 10));
         }
     }
 }

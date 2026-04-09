@@ -1,18 +1,40 @@
 package se.ifmo.ru.trig;
 
-public class Sinusoid {
-    public double calculate(double x, double epsilon) {
-        if (epsilon <= 0.0) {
+import se.ifmo.ru.common.MathFunction;
+
+import java.math.BigDecimal;
+import java.math.MathContext;
+
+public class Sinusoid implements MathFunction {
+
+    private static final MathContext MC = MathContext.DECIMAL128;
+
+    @Override
+    public BigDecimal calculate(BigDecimal x, BigDecimal epsilon) {
+
+        if (x == null || epsilon == null) {
+            throw new IllegalArgumentException("Arguments must not be null");
+        }
+
+        if (epsilon.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Epsilon must be positive");
         }
 
-        double term = x;
-        double sum = term;
+        BigDecimal term = x;
+        BigDecimal sum = term;
         int k = 1;
 
-        while (Math.abs(term) >= epsilon) {
-            term *= -x * x / ((2.0 * k) * (2.0 * k + 1.0));
-            sum += term;
+        while (term.abs().compareTo(epsilon) >= 0) {
+
+            BigDecimal numerator = term.multiply(x).multiply(x).negate();
+
+            BigDecimal denominator = BigDecimal.valueOf(2L * k)
+                    .multiply(BigDecimal.valueOf(2L * k + 1L));
+
+            term = numerator.divide(denominator, MC);
+
+            sum = sum.add(term, MC);
+
             k++;
 
             if (k > 1_000_000) {
